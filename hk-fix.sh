@@ -10,26 +10,36 @@ date
 NETWORK=192.168.1.255
 FAKEWARE=~/fakeware.hk
 MACADDRESS=9c:64:5e:3:7a:5e
+IPADDRESS=$1
+PORT=$2
 
-# After a while the reciever network is going to sleep, and no mac address can be detected
-# So, we wake up the network, which makes the MAC Address available
-echo "Waking up the network..."
-ping -c 2 $NETWORK
+if [ "$PORT" == ""]; then
+        $PORT="80"
+fi
+
+if [ "$IPADDRESS" == "" ]; then
+        # After a while the reciever network is going to sleep, and no mac address can be detected
+        # So, we wake up the network, which makes the MAC Address available
+        echo "Waking up the network..."
+        ping -c 2 $NETWORK
+
+        # Detect H/K IP address by looking for the MAC Address
+        echo
+        echo "Fetching H/K IP Address"
+        HKIP=`arp -n -l -a | grep "$MACADDRESS"  | grep -o -E '(\d{1,3}\.)*(\d{1,3})' | head -n 1`
+else
+        HKIP="$IPADDRESS"
+fi
 
 # Create a fake firmeare file.
 test -e $FAKEWARE || touch $FAKEWARE
-
-# Detect H/K IP address by looking for the MAC Address
-echo
-echo "Fetching H/K IP Address"
-HKIP=`arp -n -l -a | grep "$MACADDRESS"  | grep -o -E '(\d{1,3}\.)*(\d{1,3})' | head -n 1`
 
 echo "H/K IP: $HKIP"
 echo
 echo "Sending dummy file to H/K (fake firmware update)..."
 
 # Send using CURL a post of the firmware
-OUTPUT=`curl -i -X POST -H 'Content-Type: multipart/form-data' -F appFirmware=@$FAKEWARE -F 'appFirmwareFile=Upload' -H 'Referer: http://$HKIP/1000/bl_firmware_update.asp?' http://$HKIP/goform/formPostHandler | grep 'GoAhead'`
+OUTPUT=`curl -i -X POST -H 'Content-Type: multipart/form-data' -F appFirmware=@$FAKEWARE -F 'appFirmwareFile=Upload' -H 'Referer: http://$HKIP:$PORT/1000/bl_firmware_update.asp?' http://$HKIP:$PORT/goform/formPostHandler | grep 'GoAhead'`
 
 echo
 
@@ -44,3 +54,4 @@ else
 fi
 
 echo
+
